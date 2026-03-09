@@ -27,6 +27,75 @@ Free. Clear. Efficient.
   </a>
 </p>
 
+## Run on Nix / NixOS
+
+You can run Zayit directly from the flake without cloning the repository.
+
+Run once:
+
+```bash
+nix run github:kdroidFilter/Zayit
+```
+
+Install for current user profile:
+
+```bash
+nix profile install github:kdroidFilter/Zayit
+```
+
+After that, run:
+
+```bash
+zayit
+```
+
+### Add to a flake-based NixOS config
+
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    zayit.url = "github:kdroidFilter/Zayit";
+  };
+
+  outputs = { self, nixpkgs, zayit, ... }:
+    {
+      nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = [
+          ({ pkgs, ... }: {
+            environment.systemPackages = [
+              zayit.packages.${pkgs.system}.default
+            ];
+          })
+        ];
+      };
+    };
+}
+```
+
+### Add to an existing `/etc/nixos/configuration.nix` (non-flake)
+
+```nix
+{ pkgs, ... }:
+let
+  zayitFlake = builtins.getFlake "github:kdroidFilter/Zayit/<pin-a-commit-or-tag>";
+in
+{
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
+  environment.systemPackages = [
+    zayitFlake.packages.${pkgs.system}.default
+  ];
+}
+```
+
+Then apply the system configuration:
+
+```bash
+sudo nixos-rebuild switch
+```
+
 ## Vision
 Zayit is a dream turned useful: a natural, fluid, almost obvious study experience.
 The project will remain free by principle. Support is welcome and meaningful.
