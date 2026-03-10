@@ -49,6 +49,9 @@ After that, run:
 zayit
 ```
 
+The flake uses JetBrains Runtime 25 (JBR 25), matching CI.
+Current flake target is `x86_64-linux`.
+
 ### Add to a flake-based NixOS config
 
 ```nix

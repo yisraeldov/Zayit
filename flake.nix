@@ -5,24 +5,26 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     seforimlibrary = {
-      url = "git+https://github.com/kdroidFilter/SeforimLibrary.git?submodules=1";
+      url = "git+https://github.com/kdroidFilter/SeforimLibrary.git?rev=988cf2679ce14e9aeebd0d783b8dd3ad778b7cf8&submodules=1";
       flake = false;
     };
   };
 
   outputs =
     {
-      self,
       nixpkgs,
       flake-utils,
       seforimlibrary,
+      ...
     }:
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (
+    flake-utils.lib.eachSystem [ "x86_64-linux" ] (
       system:
       let
         pkgs = import nixpkgs { inherit system; };
-        jdk = pkgs.jdk25;
-        sourceRev = self.rev or (self.dirtyRev or "dirty");
+        jbrSpec = {
+          url = "https://cache-redirector.jetbrains.com/intellij-jbr/jbrsdk-25.0.1-linux-x64-b268.52.tar.gz";
+          hash = "sha256-5ksddsDj93ThrSi0CYHAliji33yJsdyiMO/+4FLp62k=";
+        };
         runtimeLibs = with pkgs; [
           alsa-lib
           at-spi2-atk
@@ -60,64 +62,49 @@
           zlib
         ];
         runtimeLibraryPath = pkgs.lib.makeLibraryPath runtimeLibs;
-      in
-      rec {
-        packages.default = pkgs.writeShellApplication {
-          name = "zayit";
-          runtimeInputs = with pkgs; [
-            bash
-            coreutils
-            rsync
-          ];
-          text = ''
-            set -euo pipefail
-
-            cacheRoot="''${XDG_CACHE_HOME:-$HOME/.cache}/zayit"
-            sourceRev="${sourceRev}"
-            cacheKey="$sourceRev-v2"
-            workspaceDir="$cacheRoot/workspace-$cacheKey"
-            bootstrapMarker="$workspaceDir/.bootstrap-complete"
-
-            install -d "$cacheRoot"
-
-            if [ ! -f "$bootstrapMarker" ]; then
-              tmpDir="$cacheRoot/workspace-bootstrap-$$"
-              rm -rf "$tmpDir"
-              install -d "$tmpDir"
-
-              rsync -rlt --delete --chmod=Du+rwx,Fu+rw --exclude '.gradle' --exclude 'build' --exclude 'SeforimLibrary' "${self}/" "$tmpDir/"
-
-              rsync -rlt --delete --chmod=Du+rwx,Fu+rw "${seforimlibrary}/" "$tmpDir/SeforimLibrary/"
-
-              chmod -R u+w "$tmpDir"
-              touch "$tmpDir/.bootstrap-complete"
-
-              rm -rf "$workspaceDir" || true
-              mv "$tmpDir" "$workspaceDir"
-            fi
-
-            cd "$workspaceDir"
-
-            export JAVA_HOME="${jdk}/lib/openjdk"
-            export ORG_GRADLE_JAVA_HOME="$JAVA_HOME"
-            export LD_LIBRARY_PATH="${runtimeLibraryPath}:''${LD_LIBRARY_PATH:-}"
-
-            exec bash ./gradlew :SeforimApp:run "$@"
+        jbr = pkgs.stdenvNoCC.mkDerivation {
+          pname = "jbr";
+          version = "25.0.1-b268.52";
+          src = pkgs.fetchzip {
+            inherit (jbrSpec) url hash;
+          };
+          nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+          buildInputs = runtimeLibs;
+          installPhase = ''
+            runHook preInstall
+            mkdir -p "$out"
+            cp -R . "$out/"
+            runHook postInstall
           '';
         };
 
-        packages.zayit = packages.default;
+        zayit = pkgs.callPackage ./nix/zayit-package.nix {
+          inherit jbr runtimeLibs seforimlibrary;
+        };
+      in
+      {
+        packages.default = zayit;
+        packages.zayit = zayit;
+
+        apps.default = {
+          type = "app";
+          program = "${zayit}/bin/zayit";
+        };
+        apps.zayit = {
+          type = "app";
+          program = "${zayit}/bin/zayit";
+        };
 
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            jdk
-            gradle
+            jbr
+            gradle_9
             git
             pkg-config
           ];
 
-          JAVA_HOME = "${jdk}/lib/openjdk";
-          ORG_GRADLE_JAVA_HOME = "${jdk}/lib/openjdk";
+          JAVA_HOME = jbr;
+          ORG_GRADLE_JAVA_HOME = jbr;
           LD_LIBRARY_PATH = runtimeLibraryPath;
 
           shellHook = ''
@@ -125,13 +112,6 @@
             echo "Zayit desktop shell ready. Run: ./gradlew :SeforimApp:run"
           '';
         };
-
-        apps.default = {
-          type = "app";
-          program = "${packages.default}/bin/zayit";
-        };
-
-        apps.zayit = apps.default;
       }
     );
 }

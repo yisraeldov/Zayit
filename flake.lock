@@ -44,16 +44,17 @@
     "seforimlibrary": {
       "flake": false,
       "locked": {
-        "lastModified": 1772696137,
-        "narHash": "sha256-uHLYDA+zlEjr1raCCIvVB4hlEzDWFXJ8T5INlfePsqE=",
+        "lastModified": 1772684041,
+        "narHash": "sha256-qnEG5LWtyKeRxwIohMtdJiCkDgf1jL+lPwP626sdw0o=",
         "ref": "refs/heads/master",
-        "rev": "ab2d7f432a8d5381e9bbe19bf34de575ff0a1b56",
-        "revCount": 286,
+        "rev": "988cf2679ce14e9aeebd0d783b8dd3ad778b7cf8",
+        "revCount": 310,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/kdroidFilter/SeforimLibrary.git"
       },
       "original": {
+        "rev": "988cf2679ce14e9aeebd0d783b8dd3ad778b7cf8",
         "submodules": true,
         "type": "git",
         "url": "https://github.com/kdroidFilter/SeforimLibrary.git"
